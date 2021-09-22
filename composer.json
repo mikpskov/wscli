@@ -1,0 +1,30 @@
+{
+    "name": "mikhail/wsapi",
+    "type": "project",
+    "description": "Worksnaps Client",
+    "keywords": ["worksnaps", "client"],
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Mikhail Chilikin",
+            "email": "mikpskov@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "bin": ["wsapi"],
+    "require": {
+        "php": "^8.0",
+        "ext-curl": "*",
+        "ext-simplexml": "*"
+    },
+    "autoload": {
+        "psr-4": {
+            "App\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "App\\Tests\\": "tests/"
+        }
+    }
+}
