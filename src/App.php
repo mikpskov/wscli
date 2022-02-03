@@ -20,15 +20,15 @@ final class App
 
     public function __construct(array $config, ?string $date = null)
     {
-        $this->calendar = new IsDayOff($config['calendar'], $date);
-        $this->tracker = new Worksnaps($config['worksnaps'], $date);
+        $this->calendar = new IsDayOff($config, $date);
+        $this->tracker = new Worksnaps($config, $date);
         $this->inHours = $config['inHours'];
     }
 
     public function day(): string
     {
         $requiredDay = $this->calendar->getForDay();
-        $workedToday = $this->tracker->getForDay();
+        $workedToday = $this->tracker->getSumForDay();
         $dayOvertime = $workedToday - $requiredDay;
 
         $function = $this->inHours
@@ -43,7 +43,7 @@ final class App
     public function month(): string
     {
         $requiredMonth = $this->calendar->getForMonth();
-        $workedMonth = $this->tracker->getForMonth();
+        $workedMonth = $this->tracker->getSumForMonth();
         $monthOvertime = $workedMonth - $requiredMonth;
 
         $function = $this->inHours

@@ -8,7 +8,7 @@ interface Tracker
 {
     public function setDate(?string $date = null): void;
 
-    public function getForMonth(): int;
+    public function getSumForMonth(): int;
 
-    public function getForDay(): int;
+    public function getSumForDay(): int;
 }

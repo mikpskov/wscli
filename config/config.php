@@ -3,6 +3,9 @@
 declare(strict_types=1);
 
 return [
+    'cache' => [
+        'path' => BASE_PATH . '/cache',
+    ],
     'worksnaps' => [
         'token' => '',
         'project' => '',

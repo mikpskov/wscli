@@ -16,7 +16,7 @@ abstract class Calendar
     public function __construct(array $config, ?string $date = null)
     {
         $this->setDate($date);
-        $this->setVacations($config['vacations'] ?? []);
+        $this->setVacations($config['calendar']['vacations'] ?? []);
     }
 
     public function setDate(?string $date = null): void

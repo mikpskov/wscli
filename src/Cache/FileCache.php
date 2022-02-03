@@ -11,9 +11,9 @@ final class FileCache implements Cache
     ) {
     }
 
-    public function get(string $key): ?string
+    public function get(string $key, ?int $ttl = null): ?string
     {
-        if (!$this->has($key)) {
+        if (!$this->has($key, $ttl)) {
             return null;
         }
 
@@ -26,14 +26,18 @@ final class FileCache implements Cache
     {
         $filePath = $this->getFilePath($key);
 
-        return (bool)file_put_contents($filePath, $value);
+        return (bool)file_put_contents($filePath, $value, LOCK_EX);
     }
 
-    public function has(string $key): bool
+    public function has(string $key, ?int $ttl = null): bool
     {
         $filePath = $this->getFilePath($key);
 
-        return file_exists($filePath);
+        if (file_exists($filePath)) {
+            return $ttl === null || filemtime($filePath) > (time() - $ttl);
+        }
+
+        return false;
     }
 
     private function getFilePath(string $key): string

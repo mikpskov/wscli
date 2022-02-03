@@ -7,6 +7,7 @@ namespace App\Calendar;
 use App\Cache\Cache;
 use App\Cache\FileCache;
 use App\HttpClient\Exceptions\HttpClientException;
+use App\HttpClient\CurlHttpClient;
 use App\HttpClient\HttpClient;
 
 final class IsDayOff extends Calendar
@@ -23,20 +24,19 @@ final class IsDayOff extends Calendar
 
     private ?string $workDays;
 
-    private HttpClient $httpClient;
-
-    private Cache $cache;
-
-    public function __construct(array $config, ?string $date = null)
-    {
+    public function __construct(
+        array $config,
+        ?string $date = null,
+        private ?HttpClient $httpClient = null,
+        private ?Cache $cache = null,
+    ) {
         parent::__construct($config, $date);
 
-        $this->httpClient = new HttpClient([
+        $this->httpClient ??= new CurlHttpClient([
             'base_uri' => self::BASE_URL,
         ]);
 
-        // todo: move to config
-        $this->cache = new FileCache(BASE_PATH . '/cache');
+        $this->cache ??= new FileCache($config['cache']['path']);
     }
 
     public function getForDay(): int
@@ -95,7 +95,7 @@ final class IsDayOff extends Calendar
 
         try {
             $result = $this->httpClient->get(
-                "/api/getdata",
+                '/api/getdata',
                 [
                     'query' => [
                         'year' => $year,

@@ -4,14 +4,20 @@ declare(strict_types=1);
 
 namespace App\Tracker;
 
+use App\Cache\Cache;
+use App\Cache\FileCache;
 use App\HttpClient\Exceptions\HttpClientException;
+use App\HttpClient\CurlHttpClient;
 use App\HttpClient\HttpClient;
 use App\Utils\Date;
+use Exception;
 use SimpleXMLElement;
 
 final class Worksnaps implements Tracker
 {
     private const BASE_URL = 'https://api.worksnaps.com';
+
+    private const REQUEST_CACHE_TTL = 600;
 
     private int $project;
 
@@ -19,19 +25,23 @@ final class Worksnaps implements Tracker
 
     private Date $date;
 
-    private HttpClient $httpClient;
-
-    public function __construct(array $config, ?string $date = null)
-    {
-        $this->project = $config['project'];
-        $this->user = $config['user'];
+    public function __construct(
+        array $config,
+        ?string $date = null,
+        private ?HttpClient $httpClient = null,
+        private ?Cache $cache = null,
+    ) {
+        $this->project = $config['worksnaps']['project'];
+        $this->user = $config['worksnaps']['user'];
         $this->setDate($date);
 
-        $this->httpClient = new HttpClient([
+        $this->httpClient ??= new CurlHttpClient([
             'base_uri' => self::BASE_URL,
-            'auth' => [$config['token'], 'ignored'],
-            'proxy' => $config['proxy'] ?? null,
+            'auth' => [$config['worksnaps']['token'], 'ignored'],
+            'proxy' => $config['worksnaps']['proxy'] ?? null,
         ]);
+
+        $this->cache ??= new FileCache($config['cache']['path']);
     }
 
     public function setDate(?string $date = null): void
@@ -39,48 +49,73 @@ final class Worksnaps implements Tracker
         $this->date = new Date($date);
     }
 
-    public function getForMonth(): int
+    public function getSumForMonth(): int
     {
-        return $this->getReport(
+        return $this->getReportSum(
             $this->date->startOfMonth()->getTimestamp(),
-            $this->date->endOfDay()->getTimestamp()
+            $this->date->endOfDay()->getTimestamp(),
         );
     }
 
-    public function getForDay(): int
+    public function getSumForDay(): int
     {
-        return $this->getReport(
+        return $this->getReportSum(
             $this->date->startOfDay()->getTimestamp(),
-            $this->date->endOfDay()->getTimestamp()
+            $this->date->endOfDay()->getTimestamp(),
         );
     }
 
-    private function getReport(int $from, int $to): ?int
+    private function getReportSum(int $from, int $to): ?int
+    {
+        $summary = $this->requestCached("/api/projects/$this->project/reports", [
+            'name' => 'time_summary',
+            'user_ids' => $this->user,
+            'from_timestamp' => $from,
+            'to_timestamp' => $to,
+        ]);
+
+        $timeEntries = ((array)$summary)['time_entry'];
+        if ($timeEntries instanceof SimpleXMLElement) {
+            $timeEntries = [$timeEntries];
+        }
+
+        return array_reduce(
+            $timeEntries,
+            fn($carry, $entry) => $carry += (int)$entry->duration_in_minutes,
+        );
+    }
+
+    private function request(string $uri, array $queryParams): SimpleXMLElement
     {
         try {
-            $result = $this->httpClient->get(
-                "/api/projects/$this->project/reports",
-                [
-                    'query' => [
-                        'name' => 'time_summary',
-                        'user_ids' => $this->user,
-                        'from_timestamp' => $from,
-                        'to_timestamp' => $to,
-                    ],
-                ]
-            );
-
+            $result = $this->httpClient->get($uri, ['query' => $queryParams]);
             $result = $result->getBody();
         } catch (HttpClientException $e) {
             exit("Worksnaps API Error: {$e->getMessage()}" . PHP_EOL);
         }
 
-        $sum = 0;
-        $summary = new SimpleXMLElement($result);
-        foreach ($summary as $entry) {
-            $sum += (int)$entry->duration_in_minutes;
+        try {
+            return new SimpleXMLElement($result);
+        } catch (Exception $e) {
+            exit("Error XML parsing: {$e->getMessage()}" . PHP_EOL);
+        }
+    }
+
+    private function requestCached(string $uri, array $queryParams): SimpleXMLElement
+    {
+        $paramsHash = md5($uri . json_encode($queryParams));
+        $cacheKey = "response_{$paramsHash}.xlm";
+
+        if ($result = $this->cache->get($cacheKey, self::REQUEST_CACHE_TTL)) {
+            try {
+                return new SimpleXMLElement($result);
+            } catch (Exception) {
+            }
         }
 
-        return $sum;
+        $result = $this->request($uri, $queryParams);
+        $this->cache->set($cacheKey, $result->asXML());
+
+        return $result;
     }
 }

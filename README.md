@@ -3,12 +3,12 @@
 ## Config
 
 ```sh
-cp config.dist.php config.php
+cp config.php config.local.php
 ```
 
 ## Usage
 
 ```sh
-./wsapi
-./wsapi 2020-05-20
+./bin/console
+./bin/console 2020-05-20
 ```

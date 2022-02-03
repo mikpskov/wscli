@@ -6,9 +6,9 @@ namespace App\Cache;
 
 interface Cache
 {
-    public function get(string $key): ?string;
+    public function get(string $key, ?int $ttl = null): ?string;
 
     public function set(string $key, string $value): bool;
 
-    public function has(string $key): bool;
+    public function has(string $key, ?int $ttl = null): bool;
 }
