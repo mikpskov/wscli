@@ -26,6 +26,8 @@ abstract class Calendar
 
     public function setVacations(array $vacations): void
     {
+        $this->vacations = [];
+
         foreach ($vacations as $day => $hours) {
             if (!$date = new Date($day)) {
                 continue;

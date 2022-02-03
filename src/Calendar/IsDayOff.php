@@ -66,7 +66,7 @@ final class IsDayOff extends Calendar
                 continue;
             }
 
-            $minutes += array_key_exists($dayNum, $this->vacations[$this->date->getYear()])
+            $minutes += array_key_exists($dayNum, $this->vacations[$this->date->getYear()] ?? [])
                 ? $this->vacations[$this->date->getYear()][$dayNum]
                 : self::DAY_TYPES[$workDays[$dayNum]];
         }
