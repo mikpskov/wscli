@@ -74,6 +74,10 @@ final class Worksnaps implements Tracker
             'to_timestamp' => $to,
         ]);
 
+        if ($summary->count() <= 0) {
+            return 0;
+        }
+
         $timeEntries = ((array)$summary)['time_entry'];
         if ($timeEntries instanceof SimpleXMLElement) {
             $timeEntries = [$timeEntries];
