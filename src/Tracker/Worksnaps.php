@@ -10,6 +10,7 @@ use App\HttpClient\Exceptions\HttpClientException;
 use App\HttpClient\CurlHttpClient;
 use App\HttpClient\HttpClient;
 use App\Utils\Date;
+use App\ValueObjects\ReportEntry;
 use Exception;
 use SimpleXMLElement;
 
@@ -49,7 +50,7 @@ final class Worksnaps implements Tracker
         $this->date = new Date($date);
     }
 
-    public function getSumForMonth(): int
+    public function getSumForMonth(): ReportEntry
     {
         return $this->getReportSum(
             $this->date->startOfMonth()->getTimestamp(),
@@ -57,7 +58,7 @@ final class Worksnaps implements Tracker
         );
     }
 
-    public function getSumForDay(): int
+    public function getSumForDay(): ReportEntry
     {
         return $this->getReportSum(
             $this->date->startOfDay()->getTimestamp(),
@@ -65,27 +66,33 @@ final class Worksnaps implements Tracker
         );
     }
 
-    private function getReportSum(int $from, int $to): ?int
+    private function getReportSum(int $from, int $to): ReportEntry
     {
-        $summary = $this->requestCached("/api/projects/$this->project/reports", [
-            'name' => 'time_summary',
-            'user_ids' => $this->user,
+        $summary = $this->requestCached("/api/projects/{$this->project}/users/{$this->user}/time_entries.xml", [
             'from_timestamp' => $from,
             'to_timestamp' => $to,
         ]);
 
-        if ($summary->count() <= 0) {
-            return 0;
-        }
-
-        $timeEntries = ((array)$summary)['time_entry'];
+        $timeEntries = $summary->count() > 0 ? ((array)$summary)['time_entry'] : [];
         if ($timeEntries instanceof SimpleXMLElement) {
             $timeEntries = [$timeEntries];
         }
 
-        return array_reduce(
-            $timeEntries,
-            fn($carry, $entry) => $carry += (int)$entry->duration_in_minutes,
+        $duration = 0;
+        $activityLevel = 0;
+        $onlineEntriesCount = 0;
+        foreach ($timeEntries as $timeEntry) {
+            $duration += $timeEntry->duration_in_minutes;
+
+            if ((string)$timeEntry->type === 'online') {
+                $activityLevel += $timeEntry->activity_level;
+                $onlineEntriesCount++;
+            }
+        }
+
+        return new ReportEntry(
+            duration: $duration,
+            activity: ($onlineEntriesCount > 0 ? $activityLevel / $onlineEntriesCount * 10 : 0),
         );
     }
 
@@ -105,7 +112,7 @@ final class Worksnaps implements Tracker
         }
     }
 
-    private function requestCached(string $uri, array $queryParams): SimpleXMLElement
+    private function requestCached(string $uri, array $queryParams = []): SimpleXMLElement
     {
         $paramsHash = md5($uri . json_encode($queryParams));
         $cacheKey = "response_{$paramsHash}.xlm";

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App;
 
 use App\Calendar\Calendar;
+use App\Enums\Period;
 use App\Tracker\Tracker;
 use App\Utils\Date;
 use App\Tracker\Worksnaps;
 use App\Calendar\IsDayOff;
+use App\ValueObjects\ReportEntry;
 
 final class App
 {
@@ -27,31 +29,32 @@ final class App
 
     public function day(): string
     {
-        $requiredDay = $this->calendar->getForDay();
-        $workedToday = $this->tracker->getSumForDay();
-        $dayOvertime = $workedToday - $requiredDay;
+        $required = $this->calendar->getForDay();
+        $worked = $this->tracker->getSumForDay();
 
-        $function = $this->inHours
-            ? 'minutesToHours'
-            : 'minutesToHoursSeparately';
-
-        return "day:\t" . Date::$function($workedToday) .
-            ' (' . ($dayOvertime > 0 ? "\e[92m" : "\e[91m") .
-            Date::$function($dayOvertime, true) . "\e[0m)";
+        return $this->getString(Period::Day, $worked, $worked->duration - $required);
     }
 
     public function month(): string
     {
-        $requiredMonth = $this->calendar->getForMonth();
-        $workedMonth = $this->tracker->getSumForMonth();
-        $monthOvertime = $workedMonth - $requiredMonth;
+        $required = $this->calendar->getForMonth();
+        $worked = $this->tracker->getSumForMonth();
 
-        $function = $this->inHours
-            ? 'minutesToHours'
-            : 'minutesToHoursSeparately';
+        return $this->getString(Period::Month, $worked, $worked->duration - $required);
+    }
 
-        return "month:\t" . Date::$function($workedMonth) .
-            ' (' . ($monthOvertime > 0 ? "\e[92m" : "\e[91m") .
-            Date::$function($monthOvertime, true) . "\e[0m)";
+    private function getString(Period $period, ReportEntry $reportEntry, int $overtime): string
+    {
+        $timeString = $this->inHours
+            ? Date::minutesToHours($reportEntry->duration)
+            : Date::minutesToHoursSeparately($reportEntry->duration);
+
+        $overtimeString = $this->inHours
+            ? Date::minutesToHours($overtime, withSign: true)
+            : Date::minutesToHoursSeparately($overtime, withSign: true);
+
+        return "{$period->getLabel()}:\t{$timeString} " .
+            '(' . ($overtime >= 0 ? "\e[92m" : "\e[91m") . "{$overtimeString}\e[0m) " .
+            number_format($reportEntry->activity, 2);
     }
 }

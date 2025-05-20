@@ -74,7 +74,7 @@ final class Date extends DateTimeImmutable
 
     public static function minutesToHours(int $minutes, bool $withSign = false): string
     {
-        $sign = $withSign && $minutes > 0 ? '+' : '';
+        $sign = $withSign && $minutes >= 0 ? '+' : '';
 
         return $sign . round($minutes / 60, 2);
     }
@@ -86,7 +86,7 @@ final class Date extends DateTimeImmutable
 
     public static function minutesToHoursSeparately(int $minutes, bool $withSign = false): string
     {
-        $sign = $minutes > 0 ? '+' : '-';
+        $sign = $minutes >= 0 ? '+' : '-';
         $minutes = (int)abs($minutes);
 
         return sprintf(
